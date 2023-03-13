@@ -1,0 +1,6 @@
+streamlit
+pandas
+annoy
+cohere
+toml
+numpy
