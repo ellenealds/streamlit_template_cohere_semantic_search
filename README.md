@@ -146,7 +146,19 @@ After importing the csv file, we need to pre-process the text into chunks, the c
 To maintain context, we will split the text chunks into 1500 and overlap the chunks using 500 tokens from the previous chunk relevant to the article.
 
 ```python
-import textwrapdef chunk_text(df, width=1500, overlap=500):        new_df = pd.DataFrame(columns=['id', 'text_chunk'])        for index, row in df.iterrows():                chunks = []        for i in range(0, len(row['text']), width - overlap):            chunk = row['text'][i:i+width]            chunks.append(chunk)                for i, chunk in enumerate(chunks):                        start_index = i * (width - overlap)                                    new_row = {              'id': row['id'],               'text_chunk': chunk,               'start_index': start_index}            new_df = new_df.append(new_row, ignore_index=True)    return new_dfnew_df = chunk_text(df)
+import textwrapdef chunk_text(df, width=1500, overlap=500):        
+new_df = pd.DataFrame(columns=['id', 'text_chunk'])        
+for index, row in df.iterrows():                
+    chunks = []        for i in range(0, len(row['text']), width - overlap):            
+    chunk = row['text'][i:i+width]            
+    chunks.append(chunk)                
+    for i, chunk in enumerate(chunks):                        
+        start_index = i * (width - overlap)                                    
+        new_row = {              'id': row['id'],               
+        'text_chunk': chunk,               
+        'start_index': start_index}            
+        new_df = new_df.append(new_row, ignore_index=True)    
+        return new_dfnew_df = chunk_text(df)
 ```
 
 ## 2a. get embeddings
