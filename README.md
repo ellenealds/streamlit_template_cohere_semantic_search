@@ -165,8 +165,14 @@ for index, row in df.iterrows():
 
 We use the co.embed to obtain a vector representation of our data.
 
-```
-import cohereimport numpy as npco = cohere.Client('<API_KEY>')embeds = co.embed(texts=list(df['text_chunk']),                  model="large",                  truncate="RIGHT").embeddingsembeds = np.array(embeds)embeds.shape
+``` python
+import cohere
+import numpy as np
+co = cohere.Client('<API_KEY>')
+embeds = co.embed(texts=list(df['text_chunk']),                  
+    model="large",                  
+    truncate="RIGHT").embeddings
+embeds = np.array(embeds)embeds.shape
 ```
 
 Great! We now have our pre-processed text and embeddings ready for the next stage where we create a search index to store the data.
@@ -175,8 +181,12 @@ Great! We now have our pre-processed text and embeddings ready for the next stag
 
 -   Step 3 — create a search index using Annoy
 
-```
-from annoy import AnnoyIndexsearch_index = AnnoyIndex(embeds.shape[1], 'angular')for i in range(len(embeds)):    search_index.add_item(i, embeds[i])search_index.build(10) search_index.save('search_index.ann')
+```python
+from annoy import AnnoyIndex
+search_index = AnnoyIndex(embeds.shape[1], 'angular')
+for i in range(len(embeds)):    
+    search_index.add_item(i, embeds[i])search_index.build(10) 
+    search_index.save('search_index.ann')
 ```
 
 The final three stages are to **create our Streamlit application,** we load the relevant libraries, data and search index from the previous stages. We then add functions to **generate embeddings to search** the Annoy index for the user’s query, and **generate an answer** from the context**.** This is all tied together in the Streamlit app with widgets for user input and markdown to display the results. _This section of code can be found in main.py_
@@ -187,8 +197,26 @@ _In the main.py file,_ we build our code for the Streamlit application.
 
 Here we import the libraries we need, the API key, initiate our cohere client and load the search index and csv file
 
-```
-import streamlit as stimport cohere  import numpy as npimport pandas as pdfrom annoy import AnnoyIndexfrom concurrent.futures import ThreadPoolExecutorimport tomlwith open('secret.toml') as f:    secrets = toml.load(f)api_key = secrets['API_KEY']co = cohere.Client('api_key')search_index = AnnoyIndex(f=4096, metric='angular')search_index.load('search_index.ann')df = pd.read_csv('cohere_text_final.csv')st.title("Cofinder")st.subheader("A semantic search tool built for the Cohere community")
+```python
+import streamlit as st
+import cohere  
+import numpy as np
+import pandas as pd
+from annoy import AnnoyIndex
+from concurrent.futures import ThreadPoolExecutor
+import toml
+with open('secret.toml') as f:    
+    secrets = toml.load(f)
+api_key = secrets['API_KEY']
+
+co = cohere.Client('api_key')
+
+search_index = AnnoyIndex(f=4096, metric='angular')
+search_index.load('search_index.ann')
+df = pd.read_csv('cohere_text_final.csv')
+
+st.title("Cofinder")
+st.subheader("A semantic search tool built for the Cohere community")
 ```
 
 ## 4\. Search Function
@@ -203,16 +231,34 @@ The `search` function takes in a query, the number of search results to return `
 
 The results of the search will be used as context to answer the user’s question.
 
-```
-def search(query, n_results, df, search_index, co):        query_embed = co.embed(texts=[query],                    model="large",                    truncate="LEFT").embeddings                nearest_neighbors = search_index.get_nns_by_vector(        query_embed[0],         n_results,         include_distances=True)        df = df[df.index.isin(nearest_neighbors[0])]    df['similarity'] = nearest_neighbors[1]    df['nearest_neighbors'] = nearest_neighbors[0]    df = df.sort_values(by='similarity', ascending=False)    return df
+```python
+def search(query, n_results, df, search_index, co):        
+    query_embed = co.embed(texts=[query],                    
+    model="large",                    
+    truncate="LEFT").embeddings                
+    
+    nearest_neighbors = search_index.get_nns_by_vector(        
+        query_embed[0],         
+        n_results,         
+        include_distances=True)        
+    
+    df = df[df.index.isin(nearest_neighbors[0])]    
+    df['similarity'] = nearest_neighbors[1]    
+    df['nearest_neighbors'] = nearest_neighbors[0]    
+    df = df.sort_values(by='similarity', ascending=False)    
+    return df
 ```
 
 When we run this function, we get a JSON output containing the article title and the context relevant to the query
 
 **Question:** How do I use Cohere to build a chatbot?
 
-```
-[0:[0:" Use Cohere's Classify endpoint for intent recognition and text classification."1:"Paragraph:Use Cohere’s Classify for intent recognition and text classification. Starting from the same Transformer architecture as Google’s Search and Translate, Cohere’s Classify endpoint can read, understand, and label the intent behind unstructured customer queries with exceptional speed and accuracy. Developers can further finetune Cohere’s large language models with their own dataset per their business or industry. Set the road rules, define your core customer intent categories, and train Cohere’s Classify model by providing it with example customer queries for each category. Start the engine, Classify then combines this custom understanding of your intent categories with a deep understanding of language and context provided by our large language models to create a finetuned model, ready to handle your customer data. Get driving, every time a user enters a prompt into your chatbot, Cohere will classify the request by intent, allowing your bot to provide the most relevant answer back. Answer the question using this paragraph. Question: How do I use Cohere to build a chatbot? Answer:"]1:[0:" Cohere uses billions of examples to train their models, which allows them to understand and recognize the intent behind a specific phrase. This intent recognition is used to power sophisticated chatbots that move beyond basic keyword recognition."1:"Paragraph:Billions of examples, Cohere’s models are trained on billions of sentences, allowing them to understand and recognize the intent behind a specific phrase. Our models excel at intent recognition tasks and can power sophisticated chatbots that move beyond basic keyword recognition. Answer the question using this paragraph. Question: How do I use Cohere to build a chatbot? Answer:"]2:[0:" Cohere is a chatbot platform that is powered by basic keyword recognition. This means that the bot's ability to 'understand' queries is dependent upon customers using very specific phrases."1:"Paragraph:Keywords aren’t enough. Many chatbot platforms are powered by basic keyword recognition. This means that the bot’s ability to “understand” queries is dependent upon customers using very specific phrases. Developers could augment this by painstakingly predicting the myriad ways that a customer could phrase a specific query, including slang, misspellings, and differences in context. However, that task would be time consuming, if not downright impossible Answer the question using this paragraph. Question: How do I use Cohere to build a chatbot? Answer:"]3:[0:" "Cohere's API is created to help you build natural language understanding and generation into your production with a few lines of code. Our Quickstart Tutorials will show you how to implement our API from zero-to-one in under 5 minutes.""1:"Paragraph:["Cohere's API is created to help you build natural language understanding and generation into your production with a few lines of code. Our Quickstart Tutorials will show you how to implement our API from zero-to-one in under 5 minutes. ", 'Chatbots are designed to understand and respond to human language. They need to be able to understand the text they hear and understand the context of the conversation. They also need to be able to respond to people’s questions and comments in a meaningful way. To accomplish this, chatbots must be able to recognize specific intents that people express in conversation.Here is an example of classifying the intent of customer inquiries on an eCommerce website into three categories: Shipping and handling policy, Start return or exchange, or Track order.', 'Updated about 1 month ago '] Answer the question using this paragraph. Question: How do I use Cohere to build a chatbot? Answer:"]4:[0:" Our product is a Web based Application which improves the efficiency of chat based support systems by automating repetitive parts of the workflow. This is done by utilising Cohere's API in order to provide smart shortcuts for the Chat Support Agents."1:"Paragraph:Our product is a Web based Application which improves the efficiency of chat based support systems by automating repetitive parts of the workflow. This is done by utilising Cohere’s API in order to provide smart shortcuts for the Chat Support Agents. We aim to maximise Customer and Customer Support Agent satisfaction by making the lookup of product and service related answers instantaneous, thereby allowing the Customer Support Agent to put more effort into the interaction with the customer rather than the mundane task of researching answers. Answer the question using this paragraph. Question: How do I use Cohere to build a chatbot? Answer:"]]
+```json
+[0:[0:" Use Cohere's Classify endpoint for intent recognition and text classification."1:"Paragraph:Use Cohere’s Classify for intent recognition and text classification. Starting from the same Transformer architecture as Google’s Search and Translate, Cohere’s Classify endpoint can read, understand, and label the intent behind unstructured customer queries with exceptional speed and accuracy. Developers can further finetune Cohere’s large language models with their own dataset per their business or industry. Set the road rules, define your core customer intent categories, and train Cohere’s Classify model by providing it with example customer queries for each category. Start the engine, Classify then combines this custom understanding of your intent categories with a deep understanding of language and context provided by our large language models to create a finetuned model, ready to handle your customer data. Get driving, every time a user enters a prompt into your chatbot, Cohere will classify the request by intent, allowing your bot to provide the most relevant answer back. Answer the question using this paragraph. Question: How do I use Cohere to build a chatbot? Answer:"]
+1:[0:" Cohere uses billions of examples to train their models, which allows them to understand and recognize the intent behind a specific phrase. This intent recognition is used to power sophisticated chatbots that move beyond basic keyword recognition."1:"Paragraph:Billions of examples, Cohere’s models are trained on billions of sentences, allowing them to understand and recognize the intent behind a specific phrase. Our models excel at intent recognition tasks and can power sophisticated chatbots that move beyond basic keyword recognition. Answer the question using this paragraph. Question: How do I use Cohere to build a chatbot? Answer:"]
+2:[0:" Cohere is a chatbot platform that is powered by basic keyword recognition. This means that the bot's ability to 'understand' queries is dependent upon customers using very specific phrases."1:"Paragraph:Keywords aren’t enough. Many chatbot platforms are powered by basic keyword recognition. This means that the bot’s ability to “understand” queries is dependent upon customers using very specific phrases. Developers could augment this by painstakingly predicting the myriad ways that a customer could phrase a specific query, including slang, misspellings, and differences in context. However, that task would be time consuming, if not downright impossible Answer the question using this paragraph. Question: How do I use Cohere to build a chatbot? Answer:"]
+3:[0:" "Cohere's API is created to help you build natural language understanding and generation into your production with a few lines of code. Our Quickstart Tutorials will show you how to implement our API from zero-to-one in under 5 minutes.""1:"Paragraph:["Cohere's API is created to help you build natural language understanding and generation into your production with a few lines of code. Our Quickstart Tutorials will show you how to implement our API from zero-to-one in under 5 minutes. ", 'Chatbots are designed to understand and respond to human language. They need to be able to understand the text they hear and understand the context of the conversation. They also need to be able to respond to people’s questions and comments in a meaningful way. To accomplish this, chatbots must be able to recognize specific intents that people express in conversation.Here is an example of classifying the intent of customer inquiries on an eCommerce website into three categories: Shipping and handling policy, Start return or exchange, or Track order.', 'Updated about 1 month ago '] Answer the question using this paragraph. Question: How do I use Cohere to build a chatbot? Answer:"]
+4:[0:" Our product is a Web based Application which improves the efficiency of chat based support systems by automating repetitive parts of the workflow. This is done by utilising Cohere's API in order to provide smart shortcuts for the Chat Support Agents."1:"Paragraph:Our product is a Web based Application which improves the efficiency of chat based support systems by automating repetitive parts of the workflow. This is done by utilising Cohere’s API in order to provide smart shortcuts for the Chat Support Agents. We aim to maximise Customer and Customer Support Agent satisfaction by making the lookup of product and service related answers instantaneous, thereby allowing the Customer Support Agent to put more effort into the interaction with the customer rather than the mundane task of researching answers. Answer the question using this paragraph. Question: How do I use Cohere to build a chatbot? Answer:"]]
 ```
 
 ## 5\. Answer Function
@@ -224,8 +270,28 @@ Overall, the `display` function below is broken down into two tasks,
 1.  The `gen_answer` and `gen_better_answer` functions are used to generate answers for the query and each of the search results. The `gen_answer` function generates an initial answer based on a prompt that includes the paragraph and the question, while `gen_better_answer` generates a better answer by incorporating the initial answers and the question.
 2.  The results are displayed in a user-friendly format using the `st` module from the Streamlit library. The search query is displayed as a subheader, followed by the better answer generated by `gen_better_answer`. The relevant documents are then displayed, one by one. Each document is displayed with its type, category, title, and link, followed by the initial answer generated by `gen_answer`. The text of the document is then collapsed and can be expanded by clicking on "Read more".
 
-```
-def display(query, results):            with ThreadPoolExecutor(max_workers=1) as executor:        results['answer'] = list(executor.map(gen_answer,                                               [query]*len(results),                                               results['text']))    answers = results['answer'].tolist()        answ = gen_better_answer(query, answers)        st.subheader(query)    st.write(answ)        st.write('')    st.write('')    st.subheader("Relevant documents")        for i, row in results.iterrows():                st.markdown(f'**{row["Type"]}**')        st.markdown(f'**{row["Category"]}**')        st.markdown(f'{row["title"]}')                        st.markdown(f'[{row["link"]}]({row["link"]})')        st.write(row['answer'])                with st.expander('Read more'):            st.write(row['text'])        st.write('')
+```python
+def display(query, results):            
+    with ThreadPoolExecutor(max_workers=1) as executor:        
+        results['answer'] = list(executor.map(gen_answer,                                               
+        [query]*len(results),                                              
+        results['text']))    
+        answers = results['answer'].tolist()        
+        answ = gen_better_answer(query, answers)        
+        st.subheader(query)    
+        st.write(answ)        
+        st.write('')    
+        st.write('')    
+        st.subheader("Relevant documents")        
+        for i, row in results.iterrows():                
+            st.markdown(f'**{row["Type"]}**')        
+            st.markdown(f'**{row["Category"]}**')        
+            st.markdown(f'{row["title"]}')                        
+            st.markdown(f'[{row["link"]}]({row["link"]})')        
+            st.write(row['answer'])                
+            with st.expander('Read more'):            
+                st.write(row['text'])        
+                st.write('')
 ```
 
 Let’s explore the the `gen_answer` and `gen_better_answer` functions to see what is happening.
@@ -241,14 +307,32 @@ Here we create two co.generate() prompts, these functions use Cohere’s pre-tra
 
 The `max_tokens` and `temperature` parameters can be tuned to control the length and randomness of the generated text.
 
-```
-def gen_answer(q, para):     response = co.generate(         model='command-xlarge-20221108',         prompt=f'''Paragraph:{para}\n\n                Answer the question using this paragraph.\n\n                Question: {q}\nAnswer:''',         max_tokens=100,         temperature=0.4)    return response.generations[0].textdef gen_better_answer(ques, ans):     response = co.generate(         model='command-xlarge-20221108',         prompt=f'''Answers:{ans}\n\n                Question: {ques}\n\n                Generate a new answer that uses the best answers                 and makes reference to the question.''',         max_tokens=100,         temperature=0.4)            return response.generations[0].text
+```python
+def gen_answer(q, para):     
+    response = co.generate(         
+        model='command-xlarge-20221108',         
+        prompt=f'''Paragraph:{para}\n\n                
+        Answer the question using this paragraph.\n\nQuestion: {q}\nAnswer:''',
+        max_tokens=100,         
+        temperature=0.4)    
+        return response.generations[0].text
+        
+    def gen_better_answer(ques, ans):     
+        response = co.generate(         
+            model='command-xlarge-20221108',         
+            prompt=f'''Answers:{ans}\n\nQuestion: {ques}\n\nGenerate a new answer that uses the best answers and makes reference to the question.''',         max_tokens=100,         
+            temperature=0.4)            
+            return response.generations[0].text
 ```
 
 Finally, we add a streamlit search input along with some question examples for the user, and button that runs our functions.
 
-```
-query = st.text_input('Ask a question about Cohere')st.markdown('''Try some of these examples: - What is the Cohere API?- What are embeddings?- What is the Cohere playground?- How can I build a chatbot?''')if st.button('Search'):    results = search(query, 3, df, search_index, co)    display(query, results)
+```python
+query = st.text_input('Ask a question about Cohere')
+st.markdown('''Try some of these examples: - What is the Cohere API?- What are embeddings?- What is the Cohere playground?- How can I build a chatbot?''')
+if st.button('Search'):    
+    results = search(query, 3, df, search_index, co)    
+    display(query, results)
 ```
 
 Well done! You are now you are ready to [publish your Streamlit application to the cloud!](https://streamlit.io/cloud)
