@@ -4,14 +4,9 @@ import numpy as np
 import pandas as pd
 from annoy import AnnoyIndex
 from concurrent.futures import ThreadPoolExecutor
-import toml
-
-# Load the secret.toml file
-with open('secret.toml') as f:
-    secrets = toml.load(f)
 
 # Access the API key value
-api_key = secrets['API_KEY']
+api_key = st.secrets['API_KEY']
 
 co = cohere.Client(api_key) 
 
@@ -42,11 +37,10 @@ def search(query, n_results, df, search_index, co):
         include_distances=True)
     # filter the dataframe to include the nearest neighbors using the index
     df = df[df.index.isin(nearest_neighbors[0])]
-    df['similarity'] = nearest_neighbors[1]
-    df['nearest_neighbors'] = nearest_neighbors[0]
+    index_similarity_df = pd.DataFrame({'similarity':nearest_neighbors[1]}, index=nearest_neighbors[0])
+    df = df.join(index_similarity_df,) # Match similarities based on indexes
     df = df.sort_values(by='similarity', ascending=False)
     return df
-
 
 
 # define a function to generate an answer

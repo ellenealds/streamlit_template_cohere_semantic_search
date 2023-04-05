@@ -121,7 +121,7 @@ You will need your Cohere API key to continue with the development.
 > 
 > **Important**
 > 
-> Create your secrect.toml in the repository and enter your cohere API Key as API\_KEY = ‘…’
+> Create your secrets.toml file in the repository as described [here](https://blog.streamlit.io/secrets-in-sharing-apps/#develop-locally-with-secrets) and enter your cohere API Key as API\_KEY = ‘…’
 
 ## Creating our Search Index
 
@@ -244,7 +244,8 @@ def search(query, n_results, df, search_index, co):
     
     df = df[df.index.isin(nearest_neighbors[0])]    
     df['similarity'] = nearest_neighbors[1]    
-    df['nearest_neighbors'] = nearest_neighbors[0]    
+    index_similarity_df = pd.DataFrame({'similarity':nearest_neighbors[1]}, index=nearest_neighbors[0])
+    df = df.join(index_similarity_df,) # Match similarities based on indexes
     df = df.sort_values(by='similarity', ascending=False)    
     return df
 ```
