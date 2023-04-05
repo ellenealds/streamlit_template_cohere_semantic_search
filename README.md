@@ -121,7 +121,7 @@ You will need your Cohere API key to continue with the development.
 > 
 > **Important**
 > 
-> Create your secrect.toml in the repository and enter your cohere API Key as API\_KEY = ‘…’
+> Create your [secrets.toml](https://blog.streamlit.io/secrets-in-sharing-apps/#develop-locally-with-secrets) in the repository and enter your cohere API Key as API\_KEY = ‘…’
 
 ## Creating our Search Index
 
