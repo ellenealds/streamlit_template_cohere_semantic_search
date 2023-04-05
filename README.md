@@ -244,7 +244,8 @@ def search(query, n_results, df, search_index, co):
     
     df = df[df.index.isin(nearest_neighbors[0])]    
     df['similarity'] = nearest_neighbors[1]    
-    df['nearest_neighbors'] = nearest_neighbors[0]    
+    index_similarity_df = pd.DataFrame({'similarity':nearest_neighbors[1]}, index=nearest_neighbors[0])
+    df = df.join(index_similarity_df,) # Match similarities based on indexes
     df = df.sort_values(by='similarity', ascending=False)    
     return df
 ```
