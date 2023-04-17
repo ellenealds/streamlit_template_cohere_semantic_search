@@ -72,7 +72,7 @@ def display(query, results):
     with ThreadPoolExecutor(max_workers=1) as executor:
         results['answer'] = list(executor.map(gen_answer, 
                                               [query]*len(results), 
-                                              results['text']))
+                                              results['text_chunk']))
     answers = results['answer'].tolist()
     # run the function to generate a better answer
     answ = gen_better_answer(query, answers)
